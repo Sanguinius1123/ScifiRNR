@@ -1,0 +1,263 @@
+# Realms and Rulers — Game Design Document
+
+Working title. Name will likely change once theme/setting is finalized. Designed as a setting-agnostic core ruleset (sci-fi version documented here first; fantasy/modern variants reuse the same engine with reskinned units and map elements).
+
+## Status
+
+This document reflects design decisions as of the most recent design conversation. Numeric values (costs, ratios, thresholds) are explicitly called out as **tunable** where the designer has flagged them as likely to change after playtesting. Treat this doc as a living reference, not a frozen spec.
+
+---
+
+## 1. Core Concept
+
+Each player acts as a leader (emperor, president, warlord, etc.) over people and territory, competing for ultimate political power (king/emperor/ruler) or collective power (a council seat) while managing economic development, military conflict, trade, and diplomacy with other players.
+
+A GM runs the game, injects narrative/story elements, manages external threats (barbarians, aliens, monsters depending on setting), and adjudicates anything the system doesn't resolve automatically.
+
+**Core tension:** players compete against each other, but excessive infighting weakens the group against external threats. Victory can come from military dominance, political consolidation (becoming the recognized ruler), or coalition-building (council/president path).
+
+**Play structure:** asynchronous, primarily via Discord for player communication/negotiation, with a web portal handling all game state, calculations, and visualization. One turn = one real-world week, giving players time to scheme, negotiate, and plan between resolution points.
+
+---
+
+## 2. Roles
+
+- **GM** — full visibility into all game state, can edit any value directly (bug fixes, roleplay adjustments, narrative events), manages neutral factions and external threats. Multiple GMs supported as the game scales.
+- **Player** — controls a realm/empire. Sees their own full data, plus whatever they've scouted of the wider map (fog of war).
+- **Observer** — can view (likely a restricted/spectator view) but not act.
+- **Freelancer / Hero** *(future feature, not in MVP)* — a smaller-scale player archetype with influence/mechanical presence but not a full realm. Roleplay-driven.
+
+---
+
+## 3. Map Structure
+
+Hierarchical, three (or four) levels deep:
+
+```
+Galaxy/Sector
+ └─ System (hex on the main map)
+     └─ Celestial body (planet, moon, asteroid belt, dyson sphere, etc.)
+         └─ Region grid (most bodies = 1 region; large bodies = multiple)
+             └─ Slots (resource-producing tiles, or city/settlement slots)
+```
+
+- Most celestial bodies have a single region. Larger/more significant bodies (major planets, dyson spheres) have multiple regions in a grid.
+- Each region contains a limited number of slots: resource tiles (food, materials, strategic materials, energy) or city/settlement slots.
+- **Fog of war:** players only see detail (production, garrison, control) for regions they control or have scouted. Unscoured regions show as unexplored on their map. The GM sees everything.
+
+---
+
+## 4. Turn Structure
+
+One turn = one week (real time). Three phases per turn:
+
+1. **Placement phase** — players assign all workers to slots (resource tiles or settlement production slots). Declares intent for the round.
+2. **Action phase** — the week-long "filler" phase. Military units are issued movement orders, diplomacy/trade happens (via Discord + the trade table), scouting occurs. Players can act asynchronously throughout the week.
+3. **Resolution phase** (end of week, processed together) — order of operations:
+   1. Scouting resolves — fog of war updates
+   2. Trade/diplomacy deals finalize — locked in before combat
+   3. Military movement resolves simultaneously (including patrol auto-defense triggers)
+   4. Combat resolves for contested regions
+   5. Production collects (based on post-combat control)
+   6. Upkeep is paid (food/energy/materials per unit and settlement)
+   7. Settlement growth/decay is evaluated
+   8. Influence is recalculated fresh for the new turn
+
+**Combat loss consequences:** losing a region means no production from it that turn, possible worker injury, and the attacker may loot the region — extracting some resources while damaging any built-up upgrades/infrastructure. Developed regions are more valuable but more fragile targets than undeveloped ones, by design (this reinforces the expansion-vs-development tension below).
+
+---
+
+## 5. Resources
+
+Six economic resources, plus Influence as a separate political resource.
+
+| Resource | Role | Notes |
+|---|---|---|
+| **Food** | Sustains population/workers/cities. The economic governor. | Free to produce (worker on a food tile costs no upkeep). Bounds expansion — overextending cities/workers without enough food production causes problems. |
+| **Energy** | The "action fuel" — spent per turn on production, unit upkeep, trade good logistics, and moving military/workers between systems. | Per-turn budget, not a stockpile — unspent energy is **lost** at end of turn unless the player has built storage infrastructure (expensive). Produced via a worker-staffed power plant; output becomes available the *following* turn (one-turn delay). |
+| **Materials** | Basic construction/production input. | Worker on a mine tile, costs 1 food upkeep, yields some amount. |
+| **Strategic materials** | Rare, high-value version of materials, gates advanced production. | Same mechanic as materials, lower yield/rarer tiles. |
+| **Trade goods** | Liquid diplomatic value; produced in defined categories (set list of types, not generic). | Produced via settlement production slots (not region tiles). A production batch always yields more than 1 unit. Each settlement can only **consume 1 unit per type per turn** for its own population — everything beyond that is automatically surplus, intended for trade. This forces specialization and makes trade structurally necessary, not optional. |
+| **IGC (Intergalactic Credits)** | Universal currency, generated through trade. | Downstream of actual productive activity — not a passive income stream. |
+| **Influence** | Political capital. Not accrued/stockpiled — a fresh snapshot each turn based on current settlement control. Spent on council votes, treaty leverage, subverting rivals' control, bribing NPC/foreign factions. | See Section 7 (Influence & Control) for full mechanic. |
+
+### Worker placement (unifying mechanic)
+
+A single worker pool, placed during the Placement phase, can go to:
+- A **resource tile** (food, materials, strategic materials, energy) in a region
+- A **settlement production slot** (trade goods, military units, ships)
+
+Same pool, same phase, different destinations. This is the single core economic decision point of the game.
+
+---
+
+## 6. Settlements
+
+### Size tiers
+
+Five tiers (1–5): roughly **Colony → Town → City → Metropolis → Capital** (exact naming TBD per setting).
+
+| Tier | Control boxes (influence slots) | Production slots | Settlement upkeep (food/turn) | Notes |
+|---|---|---|---|---|
+| 1 (Colony) | 1 | 0 | 0 | Cannot produce trade goods/units. Cheap to take, cheap to lose. Easy to flip control. |
+| 2 (Town) | 3 | 1 | 2 | |
+| 3 (City) | 6 | 2 | 4 | |
+| 4 (Metropolis) | 10 | 3 | 6 | |
+| 5 (Capital) | 15 | 4 | 8 | |
+
+**Control box formula:** triangular numbers — `n(n+1)/2` for tier n. **Production slot formula:** `tier - 1`. **Settlement upkeep formula:** `(tier - 1) × 2` food.
+
+### Workers from settlements
+
+Cities provide workers based on size (exact count tunable, tied to size tier). Workers, like militia (see Section 8), are **derived from settlement control**, not recruited/built — and like militia, are split proportionally by influence share among contenders.
+
+A worker-providing "stack" only produces a usable worker if a single player holds **all** boxes in that stack (e.g. all 3 boxes of a size-3 chunk). If split across multiple owners/neutral, no one gets the worker and no one owes upkeep for it — the slot sits dormant and self-sufficient.
+
+A rival who gains enough influence share to claim a worker (full ownership of a 3-box stack) can deploy that worker:
+- For free, anywhere on the **same celestial body**
+- For an **energy cost** (transport/"gas"), anywhere else they control (different body or system)
+
+### Upkeep responsibility
+
+Settlement upkeep cost is split among influence stakeholders proportional to their control share. If you fail to pay your share, that portion of your influence in that settlement goes **neutral** (cheap for anyone to contest), rather than some other penalty — tying economic failure directly to political consequence.
+
+**Garrison discount:** any unit stationed in a settlement you control gets a flat **−1 food** upkeep discount (food only):
+- Standard units (1 food, 0 energy) — fully covered, free to garrison
+- Mechanized (1 food, 1 energy) — food covered, energy still owed
+- Artillery (0 food, 1 energy + 1 material) — no food component, no benefit from the discount
+- Ships — cannot be stationed in a settlement, discount never applies
+
+### Settlement decay & growth
+
+- **Decay:** if a neutral, unpaid-upkeep control box stays unpaid, the settlement gets a **warning turn**, then downgrades one tier the following turn if still unresolved.
+- **Growth:** costs that tier's upkeep value again in food, **plus an equal amount of materials and energy** (tunable — flagged as likely needing adjustment after playtesting, given the constrained food economy).
+
+---
+
+## 7. Influence & Control
+
+Influence is **not a stockpiled currency** — it's a recalculated-each-turn measure of political sway, generated from settlement control across the game.
+
+### Control boxes
+
+Every settlement has a fixed number of **control boxes** based on tier (see table in Section 6: 1/3/6/10/15). Each box is claimed by exactly one entity: a player, a neutral/unclaimed state, or potentially a rebel/unrest faction or foreign power.
+
+- Whoever holds the **plurality of boxes** in a settlement is its de facto ruler (unless overridden by military occupation/coup — see below).
+- **Influence generated per turn = total control boxes owned across all settlements in the game**, for that player.
+- A tier 1 colony (1 box) is binary — whoever holds the box rules it outright, easy to flip.
+- A tier 5 capital (15 boxes) is much harder to fully dominate — a player can hold a strong plurality and still face real internal rivals.
+
+### Gaining/flipping control boxes
+
+Boxes can be flipped via:
+1. **Influence subversion** — spending influence to bribe/sway a box toward you. Cost scales with:
+   - Settlement tier (bigger settlement = higher base cost per box)
+   - Whether the box is neutral (cheap) or held by another player (expensive)
+   - Escalating cost for each additional box you already hold in that settlement (diminishing returns / soft cap on domination)
+   - **Incumbent stabilizing force** — the current plurality holder's boxes are "stickier," harder to flip
+   - **Military presence modifier** — your troops on-site make subversion cheaper for you; defender's troops make it more expensive for you
+2. **Military occupation/conquest** — direct seizure via force.
+3. **Neutral settlement competition** — newly spawned/revolted colonies can become a free-for-all: blind influence bidding, a race to garrison troops, or outright invasion, all valid approaches. GM-driven as a narrative event.
+
+**Military presence as a protective floor (not just a cost modifier):** military presence works on a sliding scale. A small garrison can make a tier 1 colony's single box essentially untouchable. In a large settlement, troops protect a number of boxes equal to (some ratio of) troop count as a hard floor — those specific boxes cannot be flipped by influence alone regardless of spend. Beyond that floor, remaining boxes are still influence-contestable, just with friction from the military presence. (Exact troop-to-box protection ratio is **tunable**, intended to be set via playtesting.)
+
+### Upkeep tied to control
+
+See Section 6 — settlement upkeep is owed proportionally by influence stakeholders, and failure to pay flips your share to neutral.
+
+---
+
+## 8. Militia (Derived Defense Force)
+
+Militia is **not built or recruited** — it is automatically derived from settlement control, recalculated at the moment a conflict is resolved.
+
+**Formula:** for every 3 influence boxes a stakeholder holds in a settlement, they get **1 militia** (`floor(boxes / 3)`). Leftover boxes below the next multiple of 3 produce no militia — that portion "sits out."
+
+- Militia follows **control, not formal ownership** — it represents population loyalty to whoever currently holds sway, not loyalty to a flag.
+- If a usurper's influence share grows enough to flip plurality, the militia's loyalty flips with it automatically — no invasion needed. This creates a distinct failure state: being subverted out from under yourself.
+- **Multi-party combat:** if three+ players each hold meaningful influence in a contested settlement, a conflict can resolve as a genuine multi-faction militia battle, layered under whatever standing military forces are also present.
+- Militia loyalty/split is calculated **at the moment a conflict resolves** during the resolution phase (not continuously live), giving players the full action-phase week to see the political situation developing and react (reinforce, negotiate, abandon) before the actual fight is calculated.
+
+---
+
+## 9. Military Units
+
+### Ground forces
+
+| Unit | Food upkeep | Energy upkeep | Material upkeep | Role |
+|---|---|---|---|---|
+| **Militia** | — (derived, see Sec. 8) | — | — | Automatic, population-based defense. Not built. |
+| **Standard** | 1 | 0 | 0 | Cheapest, best for holding ground. Garrison-friendly (upkeep fully covered when stationed in owned settlement). |
+| **Mechanized** | 1 | 1 | 0 | Stronger, mobile. Mobility matters only on multi-region celestial bodies. Garrison discount covers food only. |
+| **Artillery** | 0 | 1 | 1 | Weaker on defense, higher attack, can strike other regions without moving in (ranged support), can also fire on ships in-system. Low manpower (no food cost), no garrison benefit. |
+
+All ground units have **per-turn upkeep**, paid in the resolution phase like settlement upkeep. Units in foreign/uncontrolled territory always pay full cost (no garrison discount applies outside friendly settlements).
+
+### Space forces (ships)
+
+Not yet detailed — flagged for a future design pass. Ships cannot be "stationed" inside a settlement for upkeep-discount purposes (they're system/orbital assets, not ground garrison).
+
+---
+
+## 10. Trade & Diplomacy
+
+A shared trade table (visible to relevant parties) where players propose and negotiate deals. The system facilitates but does **not enforce** non-material terms — the GM records agreements but relies on players to honor (or break) them.
+
+Trade table entries can include:
+- Material goods (resources, trade good surplus)
+- Territory
+- IGC
+- Non-material terms: proclamations, promises, contracts, alliances, non-aggression pacts, military support agreements
+
+This is intentionally flexible — the table is a negotiation/record surface, not a rules-enforced contract system.
+
+---
+
+## 11. Open Questions / Not Yet Designed
+
+- Exact ship/fleet mechanics and space combat resolution
+- Combat resolution math in general (how attack/defense values translate to outcomes)
+- The council/voting system mechanics (how influence translates to votes, what laws/treaties can be voted on)
+- City building/infrastructure beyond the base production slots (blacksmiths, specialty trade good buildings mentioned as a concept — workers as "artisans" consuming food + another resource to produce specialty items)
+- Exact worker count granted per settlement tier
+- Exact troop-to-control-box protection ratio
+- Settlement growth cost balancing
+- Freelancer/Hero player type (mechanics deferred)
+- Whether NPC/foreign powers can hold third-party control box claims in a player's settlement (raised, not resolved)
+
+---
+
+## 12. Technical Architecture (MVP)
+
+**Goal of MVP:** prove the full stack works end to end — auth with roles, multi-user state, fog-of-war-correct data access, GM override tools — before deep game-logic (combat, trade resolution) is built out.
+
+- **Database:** PostgreSQL via Supabase. Relational structure fits the data naturally (systems → bodies → regions → slots → workers; players → resources/territories). Supabase also provides built-in auth and row-level security, which can enforce fog of war at the data layer rather than just hiding it in the UI.
+- **Backend/API:** Node.js + Express. Thin API layer between frontend and database. Designed to later host the Discord bot (`discord.js`) in the same service, sharing the same database — so end-of-turn resolution can trigger automatic Discord announcements.
+- **Frontend:** React. Role-based views: GM dashboard, Player portal, Observer view.
+- **Hosting:** Railway or Render (simple Node deployment, free tier available, persistent DB support).
+
+### MVP scope
+
+**In scope:**
+- Auth with roles (GM, Player, Observer; schema allows for future Freelancer)
+- A minimal galaxy: a few systems, a couple celestial bodies each, small region grids
+- Player realm sheet: all 6 resources + influence, workers, basic territory list
+- Fog of war enforced at the data layer: players see only their own region details + control status of scouted regions
+- GM dashboard: full visibility into all player data, direct edit capability (bug fixes / roleplay adjustments), neutral faction assignment
+
+**Explicitly out of scope for MVP:**
+- Combat resolution logic
+- Trade table mechanics
+- Discord bot (schema supports it, but not built yet)
+- Full influence/control box subversion math (data field stubbed, full mechanic not implemented)
+
+---
+
+## 13. Multi-Setting Vision
+
+The core ruleset (territory, workers, resources, conflict, diplomacy, influence/control) is designed to be setting-agnostic. The same engine could support:
+- **Sci-fi** (documented above — systems, planets, IGC, ships)
+- **Fantasy** (kingdoms, provinces, gold, armies/knights instead of fleets)
+- **Modern/geopolitical** (nations, regions, currency, conventional military)
+
+Each variant reskins units, map terminology, and flavor while reusing the same core mechanical loop.
