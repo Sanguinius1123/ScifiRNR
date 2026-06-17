@@ -10,6 +10,14 @@ import gmRouter from './routes/gm.js';
 const app = express();
 const PORT = process.env.PORT ?? 3001;
 
+// Fail fast with a clear message if required env vars are missing.
+const REQUIRED = ['SUPABASE_URL', 'SUPABASE_SECRET_KEY', 'SUPABASE_PUBLISHABLE_KEY'];
+const missing = REQUIRED.filter(k => !process.env[k]);
+if (missing.length) {
+  console.error('Missing required environment variables:', missing.join(', '));
+  process.exit(1);
+}
+
 const allowedOrigins = (process.env.CLIENT_ORIGIN ?? 'http://localhost:5173').split(',').map(s => s.trim());
 app.use(cors({ origin: (origin, cb) => cb(null, !origin || allowedOrigins.includes(origin)) }));
 app.use(express.json());
