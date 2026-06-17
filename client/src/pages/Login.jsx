@@ -9,6 +9,7 @@ export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
+  const [registrationCode, setRegistrationCode] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -23,15 +24,16 @@ export default function Login() {
     setLoading(true);
 
     if (isSignUp) {
-      const { data, error: signUpErr } = await supabase.auth.signUp({ email, password });
-      if (signUpErr) { setError(signUpErr.message); setLoading(false); return; }
-
-      if (data.user) {
-        const { error: profileErr } = await supabase
-          .from('profiles')
-          .insert({ id: data.user.id, username });
-        if (profileErr) { setError(profileErr.message); setLoading(false); return; }
-      }
+      const res = await fetch(`${import.meta.env.VITE_SERVER_URL ?? 'http://localhost:3001'}/api/auth/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password, username, registrationCode }),
+      });
+      const json = await res.json();
+      if (!res.ok) { setError(json.error); setLoading(false); return; }
+      setError('Check your email and click the confirmation link, then sign in.');
+      setLoading(false);
+      return;
     } else {
       const { error: signInErr } = await supabase.auth.signInWithPassword({ email, password });
       if (signInErr) { setError(signInErr.message); setLoading(false); return; }
@@ -55,11 +57,18 @@ export default function Login() {
           </label>
         </div>
         {isSignUp && (
-          <div style={{ marginBottom: 12 }}>
-            <label>Username<br />
-              <input type="text" value={username} onChange={e => setUsername(e.target.value)} required />
-            </label>
-          </div>
+          <>
+            <div style={{ marginBottom: 12 }}>
+              <label>Username<br />
+                <input type="text" value={username} onChange={e => setUsername(e.target.value)} required />
+              </label>
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <label>Registration Code<br />
+                <input type="text" value={registrationCode} onChange={e => setRegistrationCode(e.target.value)} placeholder="Leave blank if GM" />
+              </label>
+            </div>
+          </>
         )}
         {error && <p style={{ color: 'red' }}>{error}</p>}
         <button type="submit" disabled={loading} style={{ marginRight: 8 }}>

@@ -3,13 +3,14 @@
 -- Changing game values = UPDATE rows, not schema changes.
 -- =============================================================
 
--- Settlement tier stats (control_boxes follows n(n+1)/2, production_slots = tier-1, food_upkeep = (tier-1)*2)
+-- Settlement tier stats.
+-- control_boxes = n(n+1)/2 | production_slots = tier-1 | food_upkeep = (tier-1)*2
 CREATE TABLE settlement_tier_config (
   tier              SMALLINT PRIMARY KEY,
-  name              TEXT        NOT NULL,
-  control_boxes     SMALLINT    NOT NULL,
-  production_slots  SMALLINT    NOT NULL,
-  food_upkeep       SMALLINT    NOT NULL
+  name              TEXT     NOT NULL,
+  control_boxes     SMALLINT NOT NULL,
+  production_slots  SMALLINT NOT NULL,
+  food_upkeep       SMALLINT NOT NULL
 );
 
 INSERT INTO settlement_tier_config (tier, name, control_boxes, production_slots, food_upkeep) VALUES
@@ -17,7 +18,7 @@ INSERT INTO settlement_tier_config (tier, name, control_boxes, production_slots,
   (2, 'Town',        3,  1, 2),
   (3, 'City',        6,  2, 4),
   (4, 'Metropolis', 10,  3, 6),
-  (5, 'Capital',    15,  4, 8);
+  (5, 'Megalopolis', 15, 4, 8);
 
 -- Unit upkeep costs. is_buildable = false for militia (derived, never recruited).
 CREATE TABLE unit_type_config (

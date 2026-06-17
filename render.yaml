@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: scifi-rnr-server
+    runtime: node
+    rootDir: server
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_PUBLISHABLE_KEY
+        sync: false
+      - key: SUPABASE_SECRET_KEY
+        sync: false
+      - key: REGISTRATION_CODE
+        sync: false
+      - key: CLIENT_ORIGIN
+        sync: false

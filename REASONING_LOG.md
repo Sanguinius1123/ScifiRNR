@@ -117,6 +117,23 @@ Several earlier cost factors (settlement tier scaling, neutral vs. held discount
 
 Confirmed that workers are **settlement-specific**: `floor(boxes_owned_in_that_settlement / 3)` per realm per settlement. Owning 1 or 2 boxes in a settlement produces no worker — the partial stake is dormant and self-sufficient, but useless. The existing `realm_worker_capacity` view already implements this correctly (GROUP BY realm_id, settlement_id). No schema changes needed.
 
+## Map terminology, hex grids, territory, and fog of war (session 3)
+
+**"Body" as the generic shorthand** for any celestial body was chosen because the game supports planets, moons, asteroid belts, space stations, and dyson spheres — "planet" doesn't fit, "celestial body" is too long for conversation. "Body" is already implied by the schema table name `celestial_bodies`, is neutral enough to cover everything, and feels natural in play ("the bodies in Sol Prime"). The specific body type (Planet, Moon, etc.) appears as a tag in the UI.
+
+**Hex grids everywhere** was the designer's explicit call: hex grids are the right choice for anything above building-level tactical combat. Consistency across the system-level map and the region grid within each world avoids having two different coordinate systems to reason about. Region coordinates renamed from `grid_x/grid_y` to `hex_q/hex_r` in the schema to match the system-level naming.
+
+**Territorial projection model** emerged from the question of what it means to "control" a region that doesn't have a settlement in it. The designer defined it via projection power — tier 1–3 settlements project power 1 at range 1; tier 4–5 project power 2 at range 1 and power 1 at range 2. When multiple settlements from different players project onto the same region, the higher power wins; tied power = neutral. This model handles all the stated cases cleanly without special-casing:
+- Two tier 1–3 settlements disputing a shared region → both power 1 → neutral ✓
+- Tier 4–5 vs tier 1–3 on adjacent region → power 2 vs power 1 → tier 4–5 wins ✓
+- Tier 4–5 at range 2 vs tier 1–3 at range 1 → power 1 vs power 1 → neutral ✓
+
+**Plurality required to project.** Partial influence (non-plurality control boxes) does not project territory. The reasoning: the plurality holder controls the settlement's government, military, and administrative apparatus — that is what projects power outward. A minority stakeholder has influence *inside* the city but not outward command authority.
+
+**Fog of war model:** binary for now (full visibility or dark), with the architecture leaving room for granular information levels later. The key sources of visibility — plurality control, military presence, partial influence, scouting units, ships — were enumerated and locked in. The important technical distinction drawn: *active visibility is derived at query time* from current game state, not stored. The `scouted_regions` table is a historical record, not a live visibility map. A region goes dark the moment you lose all visibility sources in it, regardless of past scouting.
+
+**Partial influence = partial visibility** was added as a deliberate rule: even a minority stake in a settlement (any control boxes) grants the player some line of sight into that settlement's region. The thematic logic: if you have agents and influence embedded in a city, you have eyes there — you know the city exists and something of what's happening, even if you don't run it. The exact detail level visible (just the region on the map, vs. garrison count, vs. production) is left TBD for the scouting/information design pass.
+
 ## Tooling decisions (brief)
 
 Stack chosen (React + Node/Express + PostgreSQL via Supabase) was selected specifically because it lets the same language (JavaScript) span the web frontend, backend, and a future Discord bot (`discord.js`), and because Supabase's row-level security can enforce fog of war at the database layer rather than relying on the UI to hide things correctly.

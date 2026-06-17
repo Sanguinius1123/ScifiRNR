@@ -67,6 +67,18 @@ Do not re-litigate these unless the user raises them:
   is structurally guaranteed to force trade.
 - **Schema is dynamic by design:** tunable values (tier stats, unit upkeep, slot types)
   live in config lookup tables. Changing a game value = UPDATE row, not schema migration.
+- **"Body"** is the conversational shorthand for any celestial body (planet, moon,
+  asteroid belt, space station, dyson sphere, etc.). Schema table stays `celestial_bodies`.
+- **Hex grids everywhere.** System map AND region grids within worlds both use axial hex
+  coordinates (`hex_q`, `hex_r`). No square grids at any level.
+- **Territorial projection:** plurality holder of a settlement projects control onto adjacent
+  regions. Tier 1–3 = power 1 at range 1. Tier 4–5 = power 2 at range 1, power 1 at range 2.
+  Highest power wins contested regions; ties = neutral. Partial influence does not project.
+- **Fog of war (binary for now):** Full visibility from plurality control + projected regions,
+  and from military units in a region. Partial visibility (region visible on map, detail TBD)
+  from any control boxes (non-plurality) in a settlement. Ships give visibility below them.
+  Scouting units/structures give adjacent visibility (range TBD). Active visibility is
+  **derived at query time**, not stored — `scouted_regions` is historical only.
 - **Turn structure:** Placement (start of week) → 7 daily action steps → Economic resolution
   (end of week). Each daily step allows military movement or one round of battle.
   Multi-day battles and sieges are intentional. Scouting resolves per-day.

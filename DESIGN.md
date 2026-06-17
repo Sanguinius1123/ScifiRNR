@@ -31,19 +31,53 @@ A GM runs the game, injects narrative/story elements, manages external threats (
 
 ## 3. Map Structure
 
-Hierarchical, three (or four) levels deep:
+Hierarchical, four levels deep:
 
 ```
 Galaxy/Sector
  └─ System (hex on the main map)
-     └─ Celestial body (planet, moon, asteroid belt, dyson sphere, etc.)
-         └─ Region grid (most bodies = 1 region; large bodies = multiple)
-             └─ Slots (resource-producing tiles, or city/settlement slots)
+     └─ Body (planet, moon, asteroid belt, space station, dyson sphere, etc.)
+         └─ Region (hex grid; most bodies = 1 region; large bodies = multiple)
+             └─ Slots (resource-producing tiles, or settlement production slots)
 ```
 
-- Most celestial bodies have a single region. Larger/more significant bodies (major planets, dyson spheres) have multiple regions in a grid.
-- Each region contains a limited number of slots: resource tiles (food, materials, strategic materials, energy) or city/settlement slots.
-- **Fog of war:** players only see detail (production, garrison, control) for regions they control or have scouted. Unscoured regions show as unexplored on their map. The GM sees everything.
+**Terminology:** The generic shorthand for any celestial body — planet, moon, asteroid belt, space station, dyson sphere — is **"body"**. The schema table is `celestial_bodies`. Bodies within a system are distinct inhabitable/controllable locations; their specific type is shown as a label (e.g. `Helio III · Planet`).
+
+**Hex grids everywhere.** Both the system-level map and the region grid within each body use axial hex coordinates (`hex_q`, `hex_r`). No square grids are used at any level.
+
+Most bodies have a single region. Larger/more significant bodies (major planets, dyson spheres) have multiple regions on a hex grid. Each region contains a limited number of slots: resource tiles (food, materials, strategic materials, energy) or settlement production slots.
+
+### 3.1 Territory & Fog of War
+
+**Territory** is the set of regions a realm controls without necessarily having a settlement in each one. A settlement's control projects outward across the hex regions of its world based on tier:
+
+- **Tier 1–3:** projects at range 1 (all immediately adjacent hex regions) with **power 1**
+- **Tier 4–5:** projects at range 1 with **power 2**, and range 2 with **power 1**
+
+When two settlements owned by different players both project onto the same region, the higher projection power wins. Ties go neutral:
+
+| Situation | Outcome |
+|---|---|
+| Only one player projects | That player controls the region |
+| Same player, multiple settlements | That player controls it |
+| Both project power 1 (any tier, same range) | Neutral |
+| Tier 4–5 at range 1 (power 2) vs. tier 1–3 at range 1 (power 1) | Tier 4–5 player wins |
+| Tier 4–5 at range 2 (power 1) vs. tier 1–3 at range 1 (power 1) | Neutral — tied power |
+
+**Requirement to project:** a player must hold **plurality of control boxes** in a settlement for it to project territory. Partial influence does not project.
+
+**Fog of war** is currently binary — a region is either fully visible or dark. The structure leaves room for granular information levels later (scouting quality, partial reveals) without breaking the underlying model.
+
+| Visibility source | What you see |
+|---|---|
+| Plurality control of a settlement + projected regions | Full visibility |
+| Military units stationed in a region | Full visibility |
+| Any control boxes in a settlement (non-plurality) | Partial — region appears on map, detail level TBD |
+| Units/structures with scouting ability | Adjacent region(s) — range TBD per unit/structure type |
+| Ships in orbit above a world | Region(s) directly below |
+| Previously scouted, no longer active | Nothing (stale — not retained as current visibility) |
+
+**Active visibility is derived, not stored.** The `scouted_regions` table records historical scouting visits. Current visibility is computed at query time from the player's current control boxes, unit positions, and ship positions. A region scouted last turn with no current visibility source shows as dark.
 
 ---
 
@@ -102,7 +136,7 @@ Same pool, same phase, different destinations. This is the single core economic 
 
 ### Size tiers
 
-Five tiers (1–5): roughly **Colony → Town → City → Metropolis → Capital** (exact naming TBD per setting).
+Five tiers (1–5): **Colony → Town → City → Metropolis → Megalopolis**.
 
 | Tier | Control boxes (influence slots) | Production slots | Settlement upkeep (food/turn) | Notes |
 |---|---|---|---|---|
@@ -110,7 +144,11 @@ Five tiers (1–5): roughly **Colony → Town → City → Metropolis → Capita
 | 2 (Town) | 3 | 1 | 2 | |
 | 3 (City) | 6 | 2 | 4 | |
 | 4 (Metropolis) | 10 | 3 | 6 | |
-| 5 (Capital) | 15 | 4 | 8 | |
+| 5 (Megalopolis) | 15 | 4 | 8 | |
+
+### Capital designation
+
+**Capital** is not a tier — it is a player-assigned tag marking their seat of power, stored as `realms.capital_settlement_id`. A player can designate any settlement they control as their Capital, regardless of tier. The Capital receives bonuses (exact values TBD via playtesting) to worker output, resource production, and influence pressure to maintain control. If a player loses plurality control of their Capital, the bonuses are lost until they retake it or designate a new one.
 
 **Control box formula:** triangular numbers — `n(n+1)/2` for tier n. **Production slot formula:** `tier - 1`. **Settlement upkeep formula:** `(tier - 1) × 2` food.
 
