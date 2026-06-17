@@ -52,8 +52,9 @@ Do not re-litigate these unless the user raises them:
 
 - **Influence** is not a stockpile — it's a derived value recalculated each turn from
   control boxes owned. Stored as a view (`realm_influence`), not a column.
-- **Workers** derived from control boxes: `floor(boxes_owned_per_stack / 3)`.
-  A "stack" only yields a worker if one realm owns ALL 3 boxes in it.
+- **Workers** derived from control boxes: `floor(boxes_owned_in_that_settlement / 3)`.
+  Per-settlement — owning 1 or 2 boxes in a settlement yields no worker (dormant, self-sufficient).
+  The `realm_worker_capacity` view implements this correctly.
 - **Militia** derived from control boxes at the moment combat resolves: `floor(boxes / 3)`
   per stakeholder. Not recruited, not stored — calculated live.
 - **Energy** is a spent-per-turn budget (not a stockpile) — unspent energy is lost each
@@ -66,6 +67,16 @@ Do not re-litigate these unless the user raises them:
   is structurally guaranteed to force trade.
 - **Schema is dynamic by design:** tunable values (tier stats, unit upkeep, slot types)
   live in config lookup tables. Changing a game value = UPDATE row, not schema migration.
+- **Turn structure:** Placement (start of week) → 7 daily action steps → Economic resolution
+  (end of week). Each daily step allows military movement or one round of battle.
+  Multi-day battles and sieges are intentional. Scouting resolves per-day.
+- **Turn resolution trigger:** automatic weekly timer. GM can pause or advance early via
+  dashboard. `games.current_phase` schema will need a `current_day SMALLINT` column (1–7)
+  when combat is built — not needed for MVP.
+- **Subversion base costs:** 2 influence for an unenforced box, 4 for an enforced box.
+  Troop enforcement is **1:1** — one troop protects one control box. Per-turn escalation:
+  +1 for the 2nd box taken in a settlement that turn, +2 for the 3rd, etc. (Other cost
+  factors — tier scaling, neutral discount, incumbent advantage — are still TBD.)
 
 ## Database schema overview
 

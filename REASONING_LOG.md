@@ -91,6 +91,32 @@ The designer wanted to validate the riskiest *technical* unknowns (auth, role-ba
 
 This is why combat resolution, the trade table's actual mechanics, and the full influence-subversion formula were deliberately scoped *out* of the MVP even though they're designed on paper — they're game-logic-heavy and likely to keep changing, whereas auth/roles/fog-of-war/GM-tools are comparatively stable, foundational, and equally necessary regardless of which rules version ends up shipping.
 
+## Turn structure — daily action steps (session 2)
+
+The original design had a single "action phase" as a vague week-long filler. The designer refined this to **seven discrete daily action steps**, one per real day of the week. The core motivation: military movement and combat resolution happen *per day*, not all at once at the end of the week. This means battles can span multiple days (sieges take longer), players can observe enemy movement and react within the same week, and scouting information is actually actionable rather than arriving at the same time as the combat result it was meant to inform.
+
+The economic resolution remains end-of-week. The placement phase remains start-of-week. So the structure is: **Placement → 7× Daily Action → Economic Resolution**.
+
+Note: the `games.current_phase` schema column currently uses a CHECK constraint of `('placement', 'action', 'resolution')`. Once combat is being built, this will need a `current_day SMALLINT` column (1–7) alongside `current_phase` to track which daily step the game is on.
+
+## Turn resolution trigger (session 2)
+
+Decided: automatic timer (weekly). GM can pause or advance early via dashboard. This preserves the "GM runs the game" philosophy while removing the need for a GM to be online at a fixed time every week. The auto-advance handles the default case; GM control handles exceptions (missing players, story beats, early readiness).
+
+## Subversion cost formula (session 2)
+
+The previously vague "military presence modifier" and "incumbent stabilizing force" were given concrete numbers. The designer walked through a capital scenario (15 boxes: one player holds 9 with 5 troops, two others hold 3 each) to derive:
+
+- **Base cost**: 2 for an unenforced box, 4 for an enforced box.
+- **Troop enforcement ratio**: 1:1. One troop protects one box. This resolves the previously open question about the troop-to-box ratio — it is exactly 1:1, not a batch or threshold mechanic.
+- **Per-turn escalation**: +0 for the 1st box taken in a settlement that turn, +1 for the 2nd, +2 for the 3rd, etc. This makes rapid consecutive seizures costly relative to patient single-box campaigns, without making slow play mandatory.
+
+Several earlier cost factors (settlement tier scaling, neutral vs. held discount, incumbent advantage) remain as intended modifiers layered on top of the 2/4 base — their exact values are still TBD via playtesting.
+
+## Workers — settlement-specific confirmed (session 2)
+
+Confirmed that workers are **settlement-specific**: `floor(boxes_owned_in_that_settlement / 3)` per realm per settlement. Owning 1 or 2 boxes in a settlement produces no worker — the partial stake is dormant and self-sufficient, but useless. The existing `realm_worker_capacity` view already implements this correctly (GROUP BY realm_id, settlement_id). No schema changes needed.
+
 ## Tooling decisions (brief)
 
 Stack chosen (React + Node/Express + PostgreSQL via Supabase) was selected specifically because it lets the same language (JavaScript) span the web frontend, backend, and a future Discord bot (`discord.js`), and because Supabase's row-level security can enforce fog of war at the database layer rather than relying on the UI to hide things correctly.

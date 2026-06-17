@@ -49,21 +49,28 @@ Galaxy/Sector
 
 ## 4. Turn Structure
 
-One turn = one week (real time). Three phases per turn:
+One turn = one real week. Each week has three phases:
 
-1. **Placement phase** — players assign all workers to slots (resource tiles or settlement production slots). Declares intent for the round.
-2. **Action phase** — the week-long "filler" phase. Military units are issued movement orders, diplomacy/trade happens (via Discord + the trade table), scouting occurs. Players can act asynchronously throughout the week.
-3. **Resolution phase** (end of week, processed together) — order of operations:
-   1. Scouting resolves — fog of war updates
-   2. Trade/diplomacy deals finalize — locked in before combat
-   3. Military movement resolves simultaneously (including patrol auto-defense triggers)
-   4. Combat resolves for contested regions
-   5. Production collects (based on post-combat control)
-   6. Upkeep is paid (food/energy/materials per unit and settlement)
-   7. Settlement growth/decay is evaluated
-   8. Influence is recalculated fresh for the new turn
+1. **Placement phase** (start of week) — players assign all workers to slots: resource tiles (food, materials, energy, strategic) or settlement production slots. Also declare production orders (trade goods, new units, structures).
 
-**Combat loss consequences:** losing a region means no production from it that turn, possible worker injury, and the attacker may loot the region — extracting some resources while damaging any built-up upgrades/infrastructure. Developed regions are more valuable but more fragile targets than undeveloped ones, by design (this reinforces the expansion-vs-development tension below).
+2. **Action phase** — seven daily action steps, one per day of the week.
+   - Each day, military units may **move** (based on their mobility) or enact **one round of battle** in their current location.
+   - Multi-day battles are possible — a siege may take several days. Players observe enemy movements and can react before the next daily step.
+   - Scouting resolves per-day, giving fog-of-war updates players can act on within the same week.
+   - Diplomacy and trade (via Discord) happens throughout the week; deals can be struck any time before economic resolution.
+
+3. **Economic resolution** (end of week) — processes in this order:
+   1. Resources collected from worker assignments (based on post-battle control)
+   2. Trade/diplomacy deals finalize
+   3. Products complete — trade goods, new military units, structures
+   4. Upkeep paid (food/energy/materials per unit and settlement)
+   5. Settlement growth/decay evaluated
+   6. Energy budget resets — unspent energy is lost (unless player has storage infrastructure)
+   7. Influence recalculated fresh from current control boxes
+
+**Turn resolution trigger:** automatic on a weekly timer. The GM can pause the timer (e.g., a player is unavailable) or advance it early if all players are ready. GM dashboard provides full control over the timer.
+
+**Combat loss consequences:** losing a region means no production from it that turn, possible worker injury, and the attacker may loot the region — extracting some resources while damaging built-up infrastructure. Developed regions are more valuable but more fragile targets, reinforcing the expansion-vs-development tension.
 
 ---
 
@@ -150,16 +157,30 @@ Every settlement has a fixed number of **control boxes** based on tier (see tabl
 ### Gaining/flipping control boxes
 
 Boxes can be flipped via:
-1. **Influence subversion** — spending influence to bribe/sway a box toward you. Cost scales with:
-   - Settlement tier (bigger settlement = higher base cost per box)
-   - Whether the box is neutral (cheap) or held by another player (expensive)
-   - Escalating cost for each additional box you already hold in that settlement (diminishing returns / soft cap on domination)
-   - **Incumbent stabilizing force** — the current plurality holder's boxes are "stickier," harder to flip
-   - **Military presence modifier** — your troops on-site make subversion cheaper for you; defender's troops make it more expensive for you
+1. **Influence subversion** — spending influence to bribe/sway a box toward you. Cost factors:
+   - Settlement tier (bigger settlement = higher base cost per box) — *exact scaling TBD*
+   - Whether the box is neutral (cheap) or held by another player — *exact discount TBD*
+   - **Incumbent stabilizing force** — the current plurality holder's boxes are "stickier" — *exact modifier TBD*
+   - **Troop enforcement** — see formula below
+   - **Per-turn escalation** — see formula below
 2. **Military occupation/conquest** — direct seizure via force.
-3. **Neutral settlement competition** — newly spawned/revolted colonies can become a free-for-all: blind influence bidding, a race to garrison troops, or outright invasion, all valid approaches. GM-driven as a narrative event.
+3. **Neutral settlement competition** — newly spawned/revolted colonies can become a free-for-all: blind influence bidding, a race to garrison troops, or outright invasion. GM-driven as a narrative event.
 
-**Military presence as a protective floor (not just a cost modifier):** military presence works on a sliding scale. A small garrison can make a tier 1 colony's single box essentially untouchable. In a large settlement, troops protect a number of boxes equal to (some ratio of) troop count as a hard floor — those specific boxes cannot be flipped by influence alone regardless of spend. Beyond that floor, remaining boxes are still influence-contestable, just with friction from the military presence. (Exact troop-to-box protection ratio is **tunable**, intended to be set via playtesting.)
+**Subversion cost formula (decided):**
+
+| Box state | Base influence cost |
+|---|---|
+| Unenforced (no troop protecting this box) | 2 |
+| Enforced (a troop is assigned to this box) | 4 |
+
+**Troop enforcement — 1:1 ratio:** each troop stationed in a settlement enforces exactly one of that player's control boxes. A player with 5 troops defending 9 boxes has 5 enforced and 4 unenforced. The attacker chooses which boxes to target, but enforced boxes always cost 4.
+
+**Per-turn escalation:** taking multiple boxes from the same settlement in one turn adds a stacking surcharge — +0 for the 1st box, +1 for the 2nd, +2 for the 3rd, etc. This makes rapid political seizures disproportionately expensive vs. patient one-box-per-turn campaigns.
+
+*Example:* a capital (15 boxes) where Ruler A holds 9 boxes with 5 troops. Attacker takes 2 boxes:
+- 2 unenforced boxes: 2 + (2+1) = **5 influence**
+- 1 unenforced + 1 enforced: 2 + (4+1) = **7 influence**
+- 2 enforced boxes: 4 + (4+1) = **9 influence**
 
 ### Upkeep tied to control
 

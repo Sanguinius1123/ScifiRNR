@@ -16,7 +16,7 @@ CREATE TABLE games (
   name           TEXT        NOT NULL,
   current_turn   SMALLINT    NOT NULL DEFAULT 1,
   current_phase  TEXT        NOT NULL DEFAULT 'placement'
-                             CHECK (current_phase IN ('placement', 'action', 'resolution')),
+                             CHECK (current_phase IN ('placement', 'action', 'economic_resolution')),
   created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
