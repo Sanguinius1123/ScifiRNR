@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { adminDb } from '../db.js';
+import { anonDb } from '../db.js';
 
 const router = Router();
 
@@ -19,13 +19,12 @@ router.post('/register', async (req, res) => {
     return res.status(403).json({ error: 'Invalid registration code.' });
   }
 
-  // Create the user via the admin SDK so we control the flow.
-  // email_confirm: false sends a confirmation email (keeps email ownership verified).
-  const { data, error } = await adminDb.auth.admin.createUser({
+  // signUp() via the publishable-key client triggers the standard Supabase auth flow,
+  // which sends the confirmation email automatically. admin.createUser() does not.
+  const { error } = await anonDb.auth.signUp({
     email,
     password,
-    user_metadata: { username },
-    email_confirm: false,
+    options: { data: { username } },
   });
 
   if (error) return res.status(400).json({ error: error.message });
