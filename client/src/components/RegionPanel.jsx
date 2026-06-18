@@ -4,7 +4,7 @@ import InlineEdit from './InlineEdit.jsx';
 
 const SERVER = import.meta.env.VITE_SERVER_URL ?? 'http://localhost:3001';
 
-const TIER_NAMES  = { 1: 'Colony', 2: 'Town', 3: 'City', 4: 'Metropolis', 5: 'Capital' };
+const TIER_NAMES  = { 1: 'Colony', 2: 'Town', 3: 'City', 4: 'Metropolis', 5: 'Megalopolis' };
 const SLOT_LABELS = {
   food_tile:       'Food Tile',
   material_tile:   'Material Tile',
