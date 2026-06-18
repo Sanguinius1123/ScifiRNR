@@ -78,6 +78,10 @@ Do not re-litigate these unless the user raises them:
   turn unless the player has built storage infrastructure.
 - **Settlement tiers** (1–5): Colony / Town / City / Metropolis / Megalopolis.
   control_boxes = n(n+1)/2, production_slots = tier-1, food_upkeep = (tier-1)*2.
+- **Capital designation** is NOT a tier. "Capital" is a player-assigned political tag stored
+  as `realms.capital_settlement_id`, marking their seat of power. Any settlement the player
+  controls can be their Capital regardless of tier. Grants bonuses (TBD) to worker output,
+  resource production, and influence pressure. Losing plurality control removes bonuses.
 - **Garrison discount:** flat −1 food upkeep per unit stationed in a controlled settlement.
 - **Trade goods** are produced in named categories (set by GM per campaign), tracked per
   type in `realm_trade_goods`. Each settlement consumes max 1 unit/type/turn; surplus
@@ -113,6 +117,11 @@ Do not re-litigate these unless the user raises them:
 - **Inline renaming auth:** GM can rename anything. Players can rename settlements, regions,
   bodies, and systems where their realm holds plurality control. Server enforces via
   `PATCH /api/map/{systems|bodies|regions|settlements}/:id` endpoints.
+- **Registration gate:** The `REGISTRATION_CODE` env var is required for all signups with no
+  exceptions. The `gm_whitelist` table does NOT bypass the code — it only determines role
+  assignment. When a new user confirms their email, the `handle_new_user()` trigger checks
+  `gm_whitelist` and sets `global_role = 'gm'` if matched, otherwise `'player'`. These are
+  two independent concerns: who can register (code gate) vs. what role they get (trigger).
 
 ## Database schema overview
 
@@ -159,7 +168,7 @@ client/src/
 
 ```
 server/src/routes/
-  auth.js      — POST /api/auth/register, POST /api/auth/login
+  auth.js      — POST /api/auth/register  (login goes direct to Supabase from the client)
   games.js     — CRUD for games, participants, settlements list
   map.js       — GET  /api/map/:gameId/systems
                  GET  /api/map/systems/:id/summary

@@ -139,3 +139,31 @@ Confirmed that workers are **settlement-specific**: `floor(boxes_owned_in_that_s
 Stack chosen (React + Node/Express + PostgreSQL via Supabase) was selected specifically because it lets the same language (JavaScript) span the web frontend, backend, and a future Discord bot (`discord.js`), and because Supabase's row-level security can enforce fog of war at the database layer rather than relying on the UI to hide things correctly.
 
 VS Code (not classic Visual Studio) was chosen for this specific project despite the designer's existing comfort with Visual Studio for C# work, on the reasoning that VS Code is the standard tool for the JS/React/Node stack this project actually uses, and that a desktop-app version of the game later (if wanted) would most likely be an Electron/Tauri wrapper around the same React code — not a reason to switch to a native C# build, since the multi-user/remote-login/Discord-integrated architecture the designer actually wants doesn't fit a single-machine native app model anyway.
+
+---
+
+## Session 4 corrections and clarifications
+
+### Settlement tier 5 name: Megalopolis, not Capital
+
+An early edit incorrectly renamed tier 5 to "Capital" on the reasoning that it matched a name in `settlement_tier_config`. This was wrong — the schema and DESIGN.md both had "Megalopolis" all along; the edit introduced a discrepancy. Reverted.
+
+The clarification that prompted this: **"Capital" is a separate concept entirely** — a player-assigned political designation stored as `realms.capital_settlement_id`, marking their seat of power. A Capital can be any settlement the player controls at any tier; it is not a tier name. The naming conflict (tier-5 Megalopolis vs. political Capital) is now resolved by keeping them as distinct terms and ensuring no component uses "Capital" as a tier label.
+
+### Registration gate — everyone needs the code
+
+The original implementation bypassed the registration code requirement for GM-whitelisted emails, on the reasoning that the GM wouldn't need it. The designer corrected this: the registration code should be universal. The `gm_whitelist` table's sole purpose is role assignment — when a new user confirms their email, the `handle_new_user()` DB trigger checks the whitelist and sets `global_role = 'gm'` if matched. These are two independent concerns:
+- **Who can register**: anyone with the code.
+- **What role they get**: determined by the trigger at email confirmation, not at registration.
+
+This separation also means future GMs can be added simply by adding their email to `gm_whitelist` before they register — no special registration path needed.
+
+### Confirmation email not sending — admin.createUser() bypass
+
+The registration route was using `adminDb.auth.admin.createUser()`, which is a direct admin insert into `auth.users` that bypasses Supabase's auth email pipeline. No confirmation email was sent automatically; it had to be manually triggered from the Supabase dashboard.
+
+Switched to `anonDb.auth.signUp()` (publishable-key client, no user JWT) which goes through the standard Supabase auth flow and sends the confirmation email automatically. All validation (registration code check, required fields) still happens server-side before calling `signUp()`. The user metadata (`username`) is passed identically via `options.data`.
+
+### Simple MapView prototype removed
+
+`MapView.jsx` was an early standalone map page that queried Supabase directly and had a simple galaxy → system → body drill-down. It was superseded by `HexMap.jsx`, which is the full interactive implementation embedded in both `GMDashboard` and `PlayerPortal`. Nothing linked to the `/game/:gameId/map` route it was mounted on. Removed to reduce dead code.
