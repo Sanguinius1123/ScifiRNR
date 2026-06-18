@@ -30,7 +30,7 @@ const BODY_TYPE_LABEL = {
   space_station: 'Space Station',
 };
 
-const TIER_NAMES = { 1: 'Colony', 2: 'Town', 3: 'City', 4: 'Metropolis', 5: 'Megalopolis' };
+const TIER_NAMES = { 1: 'Colony', 2: 'Town', 3: 'City', 4: 'Metropolis', 5: 'Capital' };
 
 // Fill colors per settlement tier (0 = no settlement).
 const TIER_FILL = {
