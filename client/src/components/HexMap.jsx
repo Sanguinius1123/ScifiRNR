@@ -109,6 +109,7 @@ const THREE_COL_GRID = {
   gridTemplateColumns: `${LEFT_COL}px 1fr ${RIGHT_COL}px`,
   gap: 16,
   alignItems: 'flex-start',
+  minHeight: 520,
 };
 
 export default function HexMap({ gameId, initialSystemId = null, isGM = false, userRealmId = null }) {
@@ -227,22 +228,61 @@ export default function HexMap({ gameId, initialSystemId = null, isGM = false, u
     ? (systemDisplayHexes.find(h => h.id === selectedHexKey)?.bodies ?? [])
     : [];
 
-  // Region hexes — tier fill + realm border from control box plurality.
-  const regionHexes = regions.map(rg => {
-    const settlement = Array.isArray(rg.settlements) ? rg.settlements[0] ?? null : null;
-    const boxes      = Array.isArray(settlement?.control_boxes) ? settlement.control_boxes : [];
-    const holder     = pluralityHolder(boxes);
-    const tier       = settlement?.current_tier ?? 0;
-    return {
-      id:          rg.id,
-      q:           rg.hex_q,
-      r:           rg.hex_r,
-      label:       rg.name ?? `(${rg.hex_q},${rg.hex_r})`,
-      sublabel:    settlement ? `⬡ ${settlement.name}` : null,
-      color:       TIER_FILL[tier] ?? TIER_FILL[0],
-      strokeColor: holder?.color ?? undefined,
-    };
-  });
+  // Region hexes — fog-of-war aware, tier fill, realm border, unit overlay.
+  // visibility field: 'visible' | 'scouted' | 'dark'. Defaults to 'visible' when absent (GM or unset).
+  function buildBodyHexes(regionList) {
+    return regionList.map(rg => {
+      const visibility = rg.visibility ?? 'visible';
+      const settlement = Array.isArray(rg.settlements) ? rg.settlements[0] ?? null : null;
+
+      if (visibility === 'dark') {
+        return {
+          id:          rg.id,
+          q:           rg.hex_q,
+          r:           rg.hex_r,
+          label:       null,
+          sublabel:    null,
+          color:       '#0a0f1a',
+          strokeColor: '#1e293b',
+          dimLabel:    false,
+          units:       [],
+        };
+      }
+
+      if (visibility === 'scouted') {
+        const tier = settlement?.current_tier ?? 0;
+        return {
+          id:          rg.id,
+          q:           rg.hex_q,
+          r:           rg.hex_r,
+          label:       settlement ? settlement.name : null,
+          sublabel:    settlement ? TIER_NAMES[tier] ?? null : null,
+          color:       '#1a1f2e',
+          strokeColor: '#334155',
+          dimLabel:    true,
+          units:       [],
+        };
+      }
+
+      // visible (default)
+      const boxes   = Array.isArray(settlement?.control_boxes) ? settlement.control_boxes : [];
+      const holder  = pluralityHolder(boxes);
+      const tier    = settlement?.current_tier ?? 0;
+      return {
+        id:          rg.id,
+        q:           rg.hex_q,
+        r:           rg.hex_r,
+        label:       rg.name ?? `(${rg.hex_q},${rg.hex_r})`,
+        sublabel:    settlement ? `⬡ ${settlement.name}` : null,
+        color:       TIER_FILL[tier] ?? TIER_FILL[0],
+        strokeColor: holder?.color ?? undefined,
+        dimLabel:    false,
+        units:       rg.units ?? [],
+      };
+    });
+  }
+
+  const regionHexes = buildBodyHexes(regions);
 
   return (
     <div style={{ background: '#0f172a', borderRadius: 8, padding: 16, color: '#e2e8f0' }}>
@@ -475,16 +515,19 @@ export default function HexMap({ gameId, initialSystemId = null, isGM = false, u
             </div>
 
             {/* Centre: region hex grid — always in the same column */}
-            <HexGrid
-              hexes={regionHexes}
-              size={90}
-              labelSize={12}
-              sublabelSize={10}
-              selectedId={selectedRegion?.id}
-              onSelect={h => setSelectedRegion(regions.find(r => r.id === h.id))}
-              onDoubleClick={h => setSelectedRegion(regions.find(r => r.id === h.id))}
-              onBackgroundDoubleClick={() => { setSelectedBody(null); setRegions([]); setSelectedRegion(null); setSelectedHexKey(null); }}
-            />
+            <div style={{ height: 520 }}>
+              <HexGrid
+                hexes={regionHexes}
+                size={90}
+                labelSize={12}
+                sublabelSize={10}
+                selectedId={selectedRegion?.id}
+                onSelect={h => setSelectedRegion(regions.find(r => r.id === h.id))}
+                onDoubleClick={h => setSelectedRegion(regions.find(r => r.id === h.id))}
+                onBackgroundDoubleClick={() => { setSelectedBody(null); setRegions([]); setSelectedRegion(null); setSelectedHexKey(null); }}
+                panZoom
+              />
+            </div>
 
             {/* Right slot — always present so hex never shifts */}
             <div>
