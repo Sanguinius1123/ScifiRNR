@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { requireAuth } from '../middleware/auth.js';
 import { adminDb } from '../db.js';
+import { computeVisibility, markScouted } from '../utils/visibility.js';
 
 const router = Router();
 
@@ -98,7 +99,29 @@ router.get('/systems/:systemId/ships', requireAuth, async (req, res) => {
 
 // GET /api/map/bodies/:bodyId/regions
 // Regions with settlement + control box data (for fill/border colors in region grid).
+// Applies fog-of-war filtering for players; GMs receive full data.
 router.get('/bodies/:bodyId/regions', requireAuth, async (req, res) => {
+  const { bodyId } = req.params;
+
+  // Fetch the body to get system_id → game_id.
+  const { data: body, error: bodyErr } = await adminDb
+    .from('celestial_bodies')
+    .select('id, system_id')
+    .eq('id', bodyId)
+    .single();
+  if (bodyErr || !body) return res.status(404).json({ error: 'Body not found' });
+
+  const { data: sys, error: sysErr } = await adminDb
+    .from('systems')
+    .select('game_id')
+    .eq('id', body.system_id)
+    .single();
+  if (sysErr || !sys) return res.status(404).json({ error: 'System not found' });
+
+  const gameId = sys.game_id;
+  const isGM = await isGMInGame(req.user.id, gameId);
+
+  // Fetch full region data (always using adminDb to bypass RLS).
   const { data, error } = await adminDb
     .from('regions')
     .select(`
@@ -108,27 +131,122 @@ router.get('/bodies/:bodyId/regions', requireAuth, async (req, res) => {
         control_boxes(owner_realm_id, realms(id, name, color))
       )
     `)
-    .eq('body_id', req.params.bodyId);
+    .eq('body_id', bodyId);
   if (error) return res.status(500).json({ error: error.message });
-  res.json(data ?? []);
+  const regions = data ?? [];
+
+  // GMs get full data with every region tagged visible.
+  if (isGM) {
+    return res.json(regions.map(r => ({ ...r, visibility: 'visible' })));
+  }
+
+  // Players: find their realm in this game.
+  const realmId = await realmForUser(req.user.id, gameId);
+
+  // No realm = treat every region as dark.
+  if (!realmId) {
+    return res.json(regions.map(r => ({
+      id: r.id, hex_q: r.hex_q, hex_r: r.hex_r,
+      name: null, visibility: 'dark', settlements: [],
+    })));
+  }
+
+  const { visible, scouted } = await computeVisibility(adminDb, realmId, bodyId);
+
+  // Persist newly visible regions to scouted_regions (fire-and-forget — don't block response).
+  markScouted(adminDb, realmId, [...visible]).catch(() => {});
+
+  return res.json(regions.map(r => {
+    if (visible.has(r.id)) {
+      return { ...r, visibility: 'visible' };
+    }
+    if (scouted.has(r.id)) {
+      return {
+        id: r.id, hex_q: r.hex_q, hex_r: r.hex_r,
+        name: r.name, visibility: 'scouted',
+        settlements: (r.settlements ?? []).map(s => ({
+          id: s.id, name: s.name, current_tier: s.current_tier,
+        })),
+      };
+    }
+    // dark
+    return { id: r.id, hex_q: r.hex_q, hex_r: r.hex_r, name: null, visibility: 'dark', settlements: [] };
+  }));
 });
 
 // GET /api/map/regions/:regionId
 // Full region detail — uses explicit separate queries to avoid nested join failures.
+// Applies fog-of-war filtering for players; GMs receive full data.
 router.get('/regions/:regionId', requireAuth, async (req, res) => {
   const { regionId } = req.params;
 
-  const [regionRes, slotsRes, settlementsRes] = await Promise.all([
-    adminDb.from('regions').select('id, name, hex_q, hex_r').eq('id', regionId).single(),
+  // Fetch the region first so we can derive body → system → game context.
+  const { data: region, error: regionErr } = await adminDb
+    .from('regions')
+    .select('id, name, hex_q, hex_r, body_id')
+    .eq('id', regionId)
+    .single();
+  if (regionErr || !region) return res.status(404).json({ error: 'Region not found' });
+
+  // Walk up to game_id for GM check and realm lookup.
+  const { data: body, error: bodyErr } = await adminDb
+    .from('celestial_bodies')
+    .select('id, system_id')
+    .eq('id', region.body_id)
+    .single();
+  if (bodyErr || !body) return res.status(500).json({ error: 'Body not found' });
+
+  const { data: sys, error: sysErr } = await adminDb
+    .from('systems')
+    .select('game_id')
+    .eq('id', body.system_id)
+    .single();
+  if (sysErr || !sys) return res.status(500).json({ error: 'System not found' });
+
+  const gameId = sys.game_id;
+  const isGM = await isGMInGame(req.user.id, gameId);
+
+  // Determine visibility for players.
+  let visibilityTag = 'visible'; // default for GMs
+  if (!isGM) {
+    const realmId = await realmForUser(req.user.id, gameId);
+    if (!realmId) {
+      return res.status(200).json({ visibility: 'dark' });
+    }
+    const { visible, scouted } = await computeVisibility(adminDb, realmId, region.body_id);
+    if (visible.has(regionId)) {
+      // Persist scouting record (fire-and-forget).
+      markScouted(adminDb, realmId, [regionId]).catch(() => {});
+      visibilityTag = 'visible';
+    } else if (scouted.has(regionId)) {
+      visibilityTag = 'scouted';
+    } else {
+      return res.status(200).json({ visibility: 'dark' });
+    }
+  }
+
+  // Fetch full detail. For scouted regions we still fetch everything and then strip
+  // sensitive fields below (avoids extra round trips).
+  const [slotsRes, settlementsRes] = await Promise.all([
     adminDb.from('slots').select('id, slot_index, slot_type_config(name)').eq('region_id', regionId).order('slot_index'),
     adminDb.from('settlements').select('id, name, current_tier').eq('region_id', regionId),
   ]);
 
-  if (regionRes.error) return res.status(404).json({ error: 'Region not found' });
-
-  const region = regionRes.data;
   const slots = slotsRes.data ?? [];
   const settlements = settlementsRes.data ?? [];
+
+  if (visibilityTag === 'scouted') {
+    // Scouted: return region name + settlement name/tier; no slots, no units, no control boxes.
+    return res.json({
+      id: region.id, name: region.name, hex_q: region.hex_q, hex_r: region.hex_r,
+      visibility: 'scouted',
+      slots: [],
+      settlements: settlements.map(s => ({ id: s.id, name: s.name, current_tier: s.current_tier })),
+      units: [],
+    });
+  }
+
+  // Fully visible — return everything.
 
   // Worker assignments — keyed by slot id.
   const slotIds = slots.map(s => s.id);
@@ -154,7 +272,8 @@ router.get('/regions/:regionId', requireAuth, async (req, res) => {
     .eq('region_id', regionId);
 
   res.json({
-    ...region,
+    id: region.id, name: region.name, hex_q: region.hex_q, hex_r: region.hex_r,
+    visibility: 'visible',
     slots: slots.map(s => ({ ...s, worker: workerBySlot[s.id] ?? null })),
     settlements: settlementsWithBoxes,
     units: (units ?? []).map(u => ({
