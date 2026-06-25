@@ -115,25 +115,29 @@ export default function HexGrid({
   sublabelSize,
   panZoom = false,
 }) {
-  if (!hexes || hexes.length === 0) return <p style={{ color: '#94a3b8' }}>Nothing to display.</p>;
-
-  const pixels = hexes.map(h => ({ ...h, ...hexToPixel(h.q, h.r, size) }));
-
-  const xs = pixels.map(p => p.x);
-  const ys = pixels.map(p => p.y);
+  // Compute bounds before hooks (guards against empty so Math.min/max don't blow up).
+  const safeHexes = hexes ?? [];
+  const pixels = safeHexes.map(h => ({ ...h, ...hexToPixel(h.q, h.r, size) }));
+  const xs  = pixels.map(p => p.x);
+  const ys  = pixels.map(p => p.y);
   const pad = size * 1.2;
-  const minX = Math.min(...xs) - pad;
-  const minY = Math.min(...ys) - pad;
-  const maxX = Math.max(...xs) + pad;
-  const maxY = Math.max(...ys) + pad;
+  const minX = xs.length ? Math.min(...xs) - pad : 0;
+  const minY = ys.length ? Math.min(...ys) - pad : 0;
+  const maxX = xs.length ? Math.max(...xs) + pad : 100;
+  const maxY = ys.length ? Math.max(...ys) + pad : 100;
   const natW = maxX - minX;
   const natH = maxY - minY;
 
-  // ── Pan/zoom state ──────────────────────────────────────────────────────────
+  // ── Pan/zoom state — hooks must come before any early returns ───────────────
   const [vb, setVb] = useState({ x: minX, y: minY, width: natW, height: natH });
 
   const dragRef = useRef(null); // { startClientX, startClientY, startVbX, startVbY, moved }
   const svgRef  = useRef(null);
+
+  // Reset viewBox when the map content changes (different body / new hexes loaded).
+  useEffect(() => {
+    setVb({ x: minX, y: minY, width: natW, height: natH });
+  }, [minX, minY, natW, natH]);
 
   const handleWheel = useCallback((e) => {
     if (!panZoom) return;
@@ -200,6 +204,8 @@ export default function HexGrid({
     if (!panZoom) return;
     dragRef.current = null;
   }
+
+  if (safeHexes.length === 0) return <p style={{ color: '#94a3b8' }}>Nothing to display.</p>;
 
   const currentVb = panZoom ? vb : { x: minX, y: minY, width: natW, height: natH };
 
