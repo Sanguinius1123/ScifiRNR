@@ -164,6 +164,30 @@ The registration route was using `adminDb.auth.admin.createUser()`, which is a d
 
 Switched to `anonDb.auth.signUp()` (publishable-key client, no user JWT) which goes through the standard Supabase auth flow and sends the confirmation email automatically. All validation (registration code check, required fields) still happens server-side before calling `signUp()`. The user metadata (`username`) is passed identically via `options.data`.
 
+### Fog of war — three states, not two (session 4 refinement)
+
+The original design said "binary — visible or dark." This was refined to three states: **Visible**, **Scouted**, and **Dark**. The key addition is Scouted: once you've seen a region, it doesn't go pitch black when you lose visibility — you retain the knowledge that the settlement exists there, frozen at its last-known state. This mirrors how intelligence works in real strategy (you remember what you saw, you just don't know what's changed). Detail only updates when you regain visibility.
+
+This was the designer's explicit call: "map info should show a settlement exists if you have ever seen it, although the information you see should only update when you see it again."
+
+### Ship line of sight — full body surface (session 4)
+
+Clarified: a ship in a system sector reveals **all** surface regions on the body in that sector, not just a single region. The reasoning: a ship in orbit can see the whole planet below it. This is a significant LoS advantage for naval control and justifies ship upkeep.
+
+### Unit LoS reveals adjacent regions (session 4)
+
+Ground units stationed in a region reveal that region AND all adjacent regions. This was implicit in the "scouting units give adjacent visibility" rule but is now explicit for all military units. Specialist scout units may get extended range in future.
+
+### Unit orders system — queued, simultaneous (session 4)
+
+Players issue movement orders by selecting a unit and assigning a destination. Orders queue until the daily action step resolves, at which point all player orders execute simultaneously. This prevents reaction-time advantages in an async game.
+
+The passing-through edge case: if Player A moves from Region X → Y and Player B moves from Region Y → X in the same turn, they would silently swap without fighting under naive simultaneous resolution. The intended rule: this triggers a **meeting engagement** at the border. Exact resolution (which turn step, who initiates) is TBD when combat is built, but the intent is clear — you cannot pass through a hostile force without fighting.
+
+### Stealth detection (session 4, future mechanic)
+
+Scout ships and stealth ships are not automatically visible to enemies with line of sight. Each turn a detection roll happens. This is explicitly out of MVP scope but noted now so the visibility model doesn't paint itself into a corner (the `scouted_regions` + derived visibility architecture already supports it — hidden units just don't appear in the visibility query result).
+
 ### Simple MapView prototype removed
 
 `MapView.jsx` was an early standalone map page that queried Supabase directly and had a simple galaxy → system → body drill-down. It was superseded by `HexMap.jsx`, which is the full interactive implementation embedded in both `GMDashboard` and `PlayerPortal`. Nothing linked to the `/game/:gameId/map` route it was mounted on. Removed to reduce dead code.

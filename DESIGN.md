@@ -66,18 +66,27 @@ When two settlements owned by different players both project onto the same regio
 
 **Requirement to project:** a player must hold **plurality of control boxes** in a settlement for it to project territory. Partial influence does not project.
 
-**Fog of war** is currently binary — a region is either fully visible or dark. The structure leaves room for granular information levels later (scouting quality, partial reveals) without breaking the underlying model.
+**Fog of war** has three visibility states:
 
-| Visibility source | What you see |
+- **Visible** — full live detail: settlement name/tier, control boxes, units stationed, production slots
+- **Scouted** (previously seen, not currently visible) — settlement existence shown on map at last-known position, but no live detail. Info does not update until you regain visibility.
+- **Dark** — hex is black, nothing shown, not even that a settlement exists
+
+| Visibility source | What it reveals |
 |---|---|
-| Plurality control of a settlement + projected regions | Full visibility |
-| Military units stationed in a region | Full visibility |
-| Any control boxes in a settlement (non-plurality) | Partial — region appears on map, detail level TBD |
-| Units/structures with scouting ability | Adjacent region(s) — range TBD per unit/structure type |
-| Ships in orbit above a world | Region(s) directly below |
-| Previously scouted, no longer active | Nothing (stale — not retained as current visibility) |
+| Plurality control of a settlement | Full visibility of that region + projected territory |
+| Military units stationed in a region | Full visibility of that region + all adjacent regions |
+| Any control boxes (non-plurality) | Region appears on map (scouted state at minimum) |
+| Scout / specialist units | Extended range — adjacent regions (exact range TBD per unit type) |
+| Ship in a system sector | Full visibility of ALL surface regions on the body in that sector |
+| Previously scouted, no current source | Scouted state — settlement existence only, frozen info |
+| Never seen | Dark |
 
-**Active visibility is derived, not stored.** The `scouted_regions` table records historical scouting visits. Current visibility is computed at query time from the player's current control boxes, unit positions, and ship positions. A region scouted last turn with no current visibility source shows as dark.
+**Active visibility is derived, not stored.** The `scouted_regions` table records which regions a realm has ever seen. Current visibility is computed at query time from control boxes, unit positions, and ship positions. Losing all visibility sources causes a region to drop back to scouted state (not dark — you still know it exists).
+
+**Stealth (future mechanic):** Certain units (scout ships, stealth ships) are not automatically visible to enemies with line of sight. Each turn a detection roll is made — pass means the unit appears on enemy maps, fail means it stays hidden. This is explicitly out of MVP scope but the visibility model is designed to support it.
+
+**Unit orders & movement:** Players issue movement orders by selecting a unit and assigning a destination. Orders are queued and resolve simultaneously for all players at the daily action step. Edge case: if two hostile forces swap zones in the same turn (A moves to B's region while B moves to A's region), they do not simply pass through — a **meeting engagement** triggers at the border between the two zones. Exact resolution TBD when the combat system is built.
 
 ---
 
